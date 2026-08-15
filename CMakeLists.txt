@@ -32,3 +32,4 @@ function(add_cache_test name)
 endfunction()
 
 add_cache_test(test_lru_cache)
+add_cache_test(test_thread_safe)
