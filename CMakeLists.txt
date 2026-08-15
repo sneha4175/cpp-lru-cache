@@ -33,3 +33,4 @@ endfunction()
 
 add_cache_test(test_lru_cache)
 add_cache_test(test_thread_safe)
+add_cache_test(test_ttl_cache)
