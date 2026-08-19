@@ -102,6 +102,34 @@ cmake --build build-tsan
 ctest --test-dir build-tsan --output-on-failure
 ```
 
+## Benchmark
+
+A single-threaded throughput micro-benchmark lives in `benchmarks/bench.cpp`. It
+is off by default so the normal build and CI stay fast; enable it with
+`-DBUILD_BENCH=ON`:
+
+```sh
+cmake -B build -DBUILD_BENCH=ON
+cmake --build build
+./build/bench
+```
+
+It drives a capacity-10,000 `LRUCache<int,int>` with 1,000,000 operations whose
+keys come from a fixed-seed PRNG over a key space of 20,000. Because the key
+space is twice the capacity, the `get` phase sees a realistic mix of hits and
+misses (~50%) rather than an all-hit best case. Timing uses
+`std::chrono::steady_clock`; it reports ops/sec and average ns/op for `put` and
+`get` separately.
+
+**Numbers are machine-dependent** and only meaningful relative to each other on
+the same box — do not compare across machines or compilers. Representative local
+run (Apple clang `-O2`, single core; your results will differ):
+
+```
+put: 1000000 ops | ~14.2M ops/sec | ~70 ns/op
+get: 1000000 ops | ~77.6M ops/sec | ~13 ns/op   (hit rate ~51%)
+```
+
 ## Layout
 
 ```
@@ -114,5 +142,7 @@ tests/
   test_lru_cache.cpp
   test_ttl_cache.cpp
   test_thread_safe.cpp
+benchmarks/
+  bench.cpp                 # put/get throughput micro-benchmark (opt-in)
 CMakeLists.txt
 ```

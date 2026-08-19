@@ -34,3 +34,13 @@ endfunction()
 add_cache_test(test_lru_cache)
 add_cache_test(test_thread_safe)
 add_cache_test(test_ttl_cache)
+
+# Opt-in throughput micro-benchmark (kept out of the default build so CI stays
+# fast):
+#   cmake -B build -DBUILD_BENCH=ON
+option(BUILD_BENCH "Build the throughput micro-benchmark" OFF)
+if(BUILD_BENCH)
+  add_executable(bench benchmarks/bench.cpp)
+  target_link_libraries(bench PRIVATE lru_cache project_warnings)
+  target_compile_options(bench PRIVATE -O2)
+endif()
