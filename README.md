@@ -1,5 +1,7 @@
 # cpp-lru-cache
 
+![CI](https://github.com/sneha4175/cpp-lru-cache/actions/workflows/ci.yml/badge.svg)
+
 A header-only, generic **Least-Recently-Used (LRU) cache** in modern C++17, with
 an optional thread-safe wrapper and an optional time-to-live (TTL) variant.
 
