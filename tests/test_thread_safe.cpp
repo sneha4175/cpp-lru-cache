@@ -89,8 +89,30 @@ static void stress_disjoint_keys_all_present() {
   }
 }
 
+static void test_get_or_compute_through_wrapper() {
+  // Cache-through semantics must survive the locking wrapper: miss computes
+  // once, hit returns the cached value without recomputing.
+  ThreadSafeLRUCache<int, int> cache(4);
+  std::atomic<int> computes{0};
+
+  int v1 = cache.get_or_compute(7, [&] {
+    computes.fetch_add(1);
+    return 70;
+  });
+  CHECK(v1 == 70);
+  CHECK(computes.load() == 1);
+
+  int v2 = cache.get_or_compute(7, [&] {
+    computes.fetch_add(1);
+    return -1;  // never returned: this is a hit
+  });
+  CHECK(v2 == 70);
+  CHECK(computes.load() == 1);  // hit did not recompute
+}
+
 int main() {
   stress_shared_key_space();
   stress_disjoint_keys_all_present();
+  test_get_or_compute_through_wrapper();
   return 0;
 }

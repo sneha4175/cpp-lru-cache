@@ -80,6 +80,39 @@ static void test_clear() {
   CHECK(cache.get(5).value() == 5);
 }
 
+static void test_get_or_compute() {
+  LRUCache<int, int> cache(2);
+  int computes = 0;
+
+  // Miss: compute_fn runs exactly once and the result is cached.
+  int v1 = cache.get_or_compute(1, [&] { ++computes; return 10; });
+  CHECK(v1 == 10);
+  CHECK(computes == 1);
+  CHECK(cache.contains(1));
+
+  // Hit: returns the cached value and does NOT call compute_fn. If it ran,
+  // this lambda would return 999 and bump the counter.
+  int v2 = cache.get_or_compute(1, [&] { ++computes; return 999; });
+  CHECK(v2 == 10);       // cached value wins, not the would-be 999
+  CHECK(computes == 1);  // counter unchanged -> compute_fn was not called
+
+  // A distinct miss computes again.
+  int v3 = cache.get_or_compute(2, [&] { ++computes; return 20; });
+  CHECK(v3 == 20);
+  CHECK(computes == 2);
+
+  // The hit on key 1 promoted it, then inserting 2 made 2 the MRU, so recency
+  // is now {2, 1} with 1 as LRU. A third get_or_compute must evict the LRU
+  // entry (1) exactly like put would.
+  int v4 = cache.get_or_compute(3, [&] { ++computes; return 30; });
+  CHECK(v4 == 30);
+  CHECK(computes == 3);
+  CHECK(cache.size() == 2);
+  CHECK(!cache.contains(1));  // evicted
+  CHECK(cache.contains(2));
+  CHECK(cache.contains(3));
+}
+
 int main() {
   test_basic_get_put();
   test_eviction_order();
@@ -87,5 +120,6 @@ int main() {
   test_update_existing_promotes();
   test_capacity_boundary();
   test_clear();
+  test_get_or_compute();
   return 0;
 }

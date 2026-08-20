@@ -33,6 +33,9 @@ unsound with a `std::vector`, whose iterators are invalidated by reallocation.
 - `put` on a new key inserts at the front, then evicts the back node if size now
   exceeds capacity.
 - `get` returns `std::optional<Value>` (empty on miss) and promotes on hit.
+- `get_or_compute(key, compute_fn)` is the cache-through pattern: return the
+  cached value on a hit; on a miss call `compute_fn()`, insert the result, and
+  return it. `compute_fn` runs **exactly once per miss** and never on a hit.
 
 ### Complexity
 
@@ -60,6 +63,23 @@ therefore the simpler, faster, and more honest choice.
 (If the workload were dominated by true read-only queries — e.g. a `peek` that
 does not reorder — a `shared_mutex` could pay off. The classic LRU `get` is not
 that.)
+
+### `get_or_compute` under the lock
+
+`ThreadSafeLRUCache::get_or_compute` **holds the mutex for the whole operation,
+including the call to `compute_fn`.** That is the simplest correct choice: a
+missing key is computed and inserted atomically, so `compute_fn` runs exactly
+once per miss with no window for two threads to race and both compute. The
+honest costs are that concurrent computes are **serialized** — a slow
+`compute_fn` blocks every other cache operation while it runs — and that
+`compute_fn` must not call back into the same cache, or it will **deadlock** on
+the non-recursive mutex. The alternative is a double-checked pattern (lock →
+check → unlock → compute → lock → insert) that keeps the lock free during the
+compute, but then a value can be **computed more than once** when several
+threads miss the same key concurrently, and each caller may observe a different
+computed instance. We chose the single-lock version because for the typical
+cheap, side-effect-free `compute_fn` its simplicity and single-compute
+guarantee outweigh the lost compute concurrency.
 
 ## TTL variant
 

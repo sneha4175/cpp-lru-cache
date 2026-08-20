@@ -58,6 +58,24 @@ class LRUCache {
     }
   }
 
+  // Cache-through (read-through) lookup. On a hit the entry is promoted and
+  // its value returned. On a miss compute_fn() is invoked exactly once, its
+  // result is inserted (evicting the LRU entry if now over capacity), and a
+  // copy is returned. compute_fn is any callable returning Value. Returns by
+  // value to mirror get()'s value semantics. O(1) amortized: a hit is one
+  // get, a miss is one lookup + one put plus the cost of compute_fn itself.
+  template <typename Fn>
+  Value get_or_compute(const Key& key, Fn&& compute_fn) {
+    auto it = index_.find(key);
+    if (it != index_.end()) {
+      entries_.splice(entries_.begin(), entries_, it->second);
+      return it->second->second;
+    }
+    Value value = compute_fn();
+    put(key, value);  // may evict immediately at capacity 0; value still valid
+    return value;
+  }
+
   // Const membership test; does not affect recency order.
   bool contains(const Key& key) const {
     return index_.find(key) != index_.end();

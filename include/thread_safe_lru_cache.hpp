@@ -33,6 +33,19 @@ class ThreadSafeLRUCache {
     cache_.put(key, std::move(value));
   }
 
+  // Cache-through lookup. The mutex is held for the WHOLE operation, compute
+  // included. This is the simplest correct design: a missing key is computed
+  // and inserted exactly once, with no window for two threads to race on the
+  // same miss. The trade-offs are that concurrent computes are serialized (a
+  // slow compute_fn blocks every other cache operation), and compute_fn must
+  // NOT call back into this cache or it will deadlock on the non-recursive
+  // mutex. See the README for the double-checked alternative.
+  template <typename Fn>
+  Value get_or_compute(const Key& key, Fn&& compute_fn) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return cache_.get_or_compute(key, std::forward<Fn>(compute_fn));
+  }
+
   bool contains(const Key& key) const {
     std::lock_guard<std::mutex> lock(mutex_);
     return cache_.contains(key);
